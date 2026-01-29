@@ -1,0 +1,8 @@
+{
+  "name": "Protocolo V - Experience",
+  "description": "An immersive cinematic mobile interface simulation featuring a secure communication storyline.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}
