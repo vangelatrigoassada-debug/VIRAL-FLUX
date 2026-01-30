@@ -30,16 +30,33 @@ export class OutgoingCallComponent implements OnInit, OnDestroy {
   onConnected = output<void>();
   avatarEvey = ASSETS.images.avatarEvey;
   private audio: HTMLAudioElement | null = null;
+  private fallbackTimer: any;
 
   ngOnInit() {
     this.audio = new Audio(ASSETS.audio.dialTone);
-    this.audio.play().catch(e => console.log(e));
+    
+    const play = this.audio.play();
+    if (play) {
+        play.catch(() => {
+            // If blocked, proceed anyway after short delay
+            this.fallbackTimer = setTimeout(() => this.onConnected.emit(), 2000);
+        });
+    }
+
     this.audio.onended = () => {
       this.onConnected.emit();
     };
+    
+    // Safety fallback
+    this.fallbackTimer = setTimeout(() => {
+        if (this.audio && !this.audio.ended) {
+            this.onConnected.emit();
+        }
+    }, 4000);
   }
 
   ngOnDestroy() {
+    clearTimeout(this.fallbackTimer);
     if (this.audio) {
       this.audio.pause();
       this.audio = null;

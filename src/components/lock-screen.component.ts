@@ -19,8 +19,11 @@ import { ASSETS } from '../app.assets';
 
         <div class="relative z-10 w-full px-4 mt-12 space-y-2">
             <!-- HOOK MESSAGE -->
-            <div (click)="onUnlock.emit()" class="w-full bg-white/15 backdrop-blur-md rounded-2xl p-4 cursor-pointer hover:bg-white/25 transition-colors border border-white/10 shadow-lg animate-fade-in-up group touch-manipulation">
-                <div class="flex items-start justify-between mb-1">
+            <div 
+                 (click)="onUnlock.emit()" 
+                 (touchstart)="onUnlock.emit()"
+                 class="w-full bg-white/15 backdrop-blur-md rounded-2xl p-4 cursor-pointer hover:bg-white/25 transition-colors border border-white/10 shadow-lg animate-fade-in-up group touch-manipulation active:scale-[0.98]">
+                <div class="flex items-start justify-between mb-1 pointer-events-none">
                     <div class="flex items-center gap-2">
                         <div class="w-5 h-5 bg-[#25D366] rounded flex items-center justify-center">
                             <app-icon name="phone" class="w-3 h-3 text-white fill-current"></app-icon>
@@ -28,7 +31,7 @@ import { ASSETS } from '../app.assets';
                         <span class="text-xs font-semibold text-white/80 uppercase">WHATSAPP • AGORA</span>
                     </div>
                 </div>
-                <div class="flex items-start gap-3 mt-2">
+                <div class="flex items-start gap-3 mt-2 pointer-events-none">
                     <div class="w-10 h-10 rounded-full bg-gray-800 border border-gray-600 flex-shrink-0 overflow-hidden">
                         <img [src]="avatarEvey" class="w-full h-full object-cover opacity-80" />
                     </div>

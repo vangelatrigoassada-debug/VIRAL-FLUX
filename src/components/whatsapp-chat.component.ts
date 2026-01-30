@@ -285,10 +285,7 @@ export class WhatsappChatComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.isCancelled = true;
-    if (this.currentAudio) {
-        this.currentAudio.pause();
-        this.currentAudio = null;
-    }
+    this.stopAudio();
   }
 
   getBrasiliaTime() {
@@ -389,19 +386,47 @@ export class WhatsappChatComponent implements OnInit, OnDestroy {
       } catch(e) {}
   }
 
+  stopAudio() {
+    if (this.currentAudio) {
+        this.currentAudio.pause();
+        this.currentAudio = null;
+    }
+    this.playingId.set(null);
+    this.audioProgress.set(0);
+  }
+
   playAudioPromise(id: number, url: string) {
       return new Promise<void>(resolve => {
           this.handleManualPlay({id, url});
-          if(this.currentAudio) {
-              this.currentAudio.onended = () => {
+          
+          if (!this.currentAudio) {
+              resolve();
+              return;
+          }
+
+          const audio = this.currentAudio;
+          const finish = () => {
+              if (this.currentAudio === audio) {
                   this.playingId.set(null);
                   this.audioProgress.set(0);
                   this.currentAudio = null;
-                  resolve();
-              };
-          } else {
+              }
               resolve();
-          }
+          };
+
+          audio.onended = finish;
+          audio.onerror = () => {
+              console.warn("Audio playback error");
+              finish();
+          };
+          
+          // Safety timeout for blocked autoplay
+          setTimeout(() => {
+              if (audio.paused && audio.currentTime === 0 && this.currentAudio === audio) {
+                  console.warn("Audio seems blocked, skipping");
+                  finish();
+              }
+          }, 2000);
       });
   }
 

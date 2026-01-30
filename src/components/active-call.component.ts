@@ -87,6 +87,7 @@ export class ActiveCallComponent implements OnInit, OnDestroy {
 
   private timerInterval: any;
   private audio: HTMLAudioElement | null = null;
+  private endTimeout: any;
 
   buttons = [
     { icon: 'micOff', label: 'mudo' },
@@ -101,17 +102,46 @@ export class ActiveCallComponent implements OnInit, OnDestroy {
     this.timerInterval = setInterval(() => this.duration.update(v => v + 1), 1000);
     
     this.audio = new Audio(this.audioSrc());
-    this.audio.play().catch(e => console.log('Audio error', e));
+    
+    // Safety: If audio fails to load or play, force end after a reasonable time
+    this.audio.addEventListener('error', () => this.forceEndSequence());
+    
+    // Check if autoplay works
+    const playPromise = this.audio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(e => {
+        console.log('Audio autoplay blocked', e);
+        // If blocked, we might want to simulate progress or just end
+        // For Evey call (hackMode), it's critical. 
+        // We will simulate the duration or just skip after a delay.
+        if (this.hackMode()) {
+           setTimeout(() => this.forceEndSequence(), 5000); 
+        }
+      });
+    }
     
     this.audio.onended = () => {
+      this.finishCall();
+    };
+  }
+
+  finishCall() {
       if (this.hackMode()) {
         this.statusText.set("ACESSO LIBERADO: VAGA RESERVADA");
         this.isHacked.set(true);
-        setTimeout(() => this.onEnd.emit(), 2000);
+        this.endTimeout = setTimeout(() => this.onEnd.emit(), 2000);
       } else {
-        setTimeout(() => this.onEnd.emit(), 1000);
+        this.endTimeout = setTimeout(() => this.onEnd.emit(), 1000);
       }
-    };
+  }
+
+  forceEndSequence() {
+      if (!this.isHacked() && this.hackMode()) {
+          this.statusText.set("CONEXÃO INSTÁVEL... FORÇANDO");
+          setTimeout(() => this.finishCall(), 1000);
+      } else {
+          this.onEnd.emit();
+      }
   }
 
   handleEnd() {
@@ -122,6 +152,7 @@ export class ActiveCallComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     clearInterval(this.timerInterval);
+    clearTimeout(this.endTimeout);
     if (this.audio) {
       this.audio.pause();
       this.audio = null;
