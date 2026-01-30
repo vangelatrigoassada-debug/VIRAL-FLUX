@@ -1,11 +1,11 @@
-name: Deploy Multi-Canal (Pages e Hostinger)
+name: Deploy Viral Flux (Pages e Hostinger)
 
 on:
   push:
     branches:
       - main
 
-# Esta permissão é necessária para o deploy no GitHub Pages
+# Permissões necessárias para publicar no GitHub Pages
 permissions:
   contents: write
 
@@ -13,46 +13,35 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      # --- FASE 1: PREPARAÇÃO E BUILD ---
-
-      # Passo 1: Baixa o código do seu repositório
+      # 1. Prepara o ambiente
       - name: Clonar o repositório
         uses: actions/checkout@v3
 
-      # Passo 2: Prepara o ambiente Node.js
       - name: Configurar Node.js 18
         uses: actions/setup-node@v3
         with:
           node-version: '18'
 
-      # Passo 3: Instala as dependências do projeto
+      # 2. Instalação (COM A CORREÇÃO DO ERRO)
+      # Usamos --legacy-peer-deps para ignorar o conflito de versões do TypeScript/Angular
       - name: Instalar dependências
-        run: npm install
+        run: npm install --legacy-peer-deps
 
-      # Passo 4: Gera a versão final do site (o "build")
-      # ATENÇÃO: Certifique-se que seu package.json tem o script "build"
-      # e que ele gera os arquivos na pasta "dist/".
-      # Se o seu projeto (ex: Vite/React) gera na pasta "build/", mude "dist/" para "build/" nos passos abaixo.
+      # 3. Construção do projeto
       - name: Build do projeto
         run: npm run build
 
-      # (Opcional) Apenas para verificar se a pasta dist foi criada corretamente
+      # 4. Verificação de segurança (Ver no log se a pasta dist foi criada)
       - name: Mostrar arquivos gerados
         run: ls -al dist/
 
-
-      # --- FASE 2: DEPLOYS ---
-
-      # Passo 5: Deploy para o GitHub Pages
-      # Esta action pega a pasta "dist" e joga para a branch "gh-pages"
+      # 5. Deploy para GitHub Pages
       - name: Deploy para GitHub Pages 🚀
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: dist/ # A pasta que o passo de build gerou
+          folder: dist/ # Certifique-se que seu build gera a pasta 'dist'
 
-
-      # Passo 6: Deploy FTP para Hostinger
-      # Usa a mesma pasta "dist" para enviar via FTP
+      # 6. Deploy para Hostinger via FTP
       - name: Deploy FTP para Hostinger 📂
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
@@ -60,8 +49,8 @@ jobs:
           port: 21
           username: ${{ secrets.FTP_USER }}
           password: ${{ secrets.FTP_PASS }}
-          local-dir: dist/ # A pasta local que será enviada
-          server-dir: / # O caminho no servidor da Hostinger (cuidado aqui!)
-          dangerous-clean-slate: true # ATENÇÃO: Isso apaga tudo na pasta de destino antes de enviar os novos arquivos.
+          local-dir: dist/
+          server-dir: / # Recomendo verificar se o correto não seria /public_html/
+          dangerous-clean-slate: false # Mudei para false para sua segurança inicial
           dry-run: false
           log-level: verbose
