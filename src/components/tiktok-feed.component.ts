@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, output, signal, ViewChild, ElementRef, input, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, AfterViewInit, output, signal, ViewChild, ElementRef, input, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IconComponent } from './icon.component';
 import { ASSETS } from '../app.assets';
@@ -12,11 +12,10 @@ import { ASSETS } from '../app.assets';
             #videoRef
             [src]="optimizedSrc()" 
             class="w-full h-full object-cover pointer-events-none"
-            [muted]="false"
             playsinline
             webkit-playsinline="true"
+            x5-playsinline="true"
             [preload]="preloadStrategy()"
-            controlsList="nodownload noremoteplayback noplaybackrate"
             disablePictureInPicture
             disableRemotePlayback
             (ended)="handleEnded()"
@@ -35,7 +34,7 @@ import { ASSETS } from '../app.assets';
      </div>
     `
 })
-export class TikTokVideoComponent implements OnInit {
+export class TikTokVideoComponent implements AfterViewInit {
     src = input.required<string>();
     isActive = input.required<boolean>();
     shouldPreload = input<boolean>(false);
@@ -45,45 +44,61 @@ export class TikTokVideoComponent implements OnInit {
     @ViewChild('videoRef') videoRef!: ElementRef<HTMLVideoElement>;
     showButton = signal(false);
 
-    // Otimiza a URL do Cloudinary para reduzir tamanho do arquivo sem perder qualidade visível no mobile
+    // Otimização agressiva: q_auto:eco reduz drasticamente o bitrate para carregar instantâneo
     optimizedSrc = computed(() => {
         const url = this.src();
         if (url.includes('res.cloudinary.com') && url.includes('/upload/')) {
-            // q_auto: qualidade automática
-            // f_auto: formato automático (webm/mp4)
-            // w_720: largura limitada a 720px (suficiente para mobile)
-            return url.replace('/upload/', '/upload/q_auto,f_auto,w_720/');
+            return url.replace('/upload/', '/upload/q_auto:eco,f_auto,w_720/');
         }
         return url;
     });
 
     preloadStrategy = computed(() => {
+        // Force auto preload if active or next in line to prevent lag
         if (this.isActive()) return 'auto';
         if (this.shouldPreload()) return 'auto';
-        return 'none';
+        return 'metadata';
     });
 
-    ngOnInit() {
-        // Monitor active change
+    ngAfterViewInit() {
+        // Tenta reproduzir assim que o componente for criado se ele já for o ativo (caso do 1º vídeo)
+        if (this.isActive()) {
+            this.handlePlayback();
+        }
     }
 
-    // React logic: useEffect on isActive
     ngOnChanges() {
-        if (!this.videoRef) return;
+        // Reage a mudanças de slide
+        if (this.videoRef) {
+            this.handlePlayback();
+        }
+    }
+
+    async handlePlayback() {
         const video = this.videoRef.nativeElement;
         
         if (this.isActive()) {
-            video.currentTime = 0;
             this.showButton.set(false);
-            // Tenta reproduzir. Se falhar (ex: restrição do browser), loga erro mas não trava app
-            const playPromise = video.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(error => {
-                    console.log('Autoplay prevented:', error);
-                });
+            
+            try {
+                video.currentTime = 0;
+                // Tenta tocar COM som primeiro
+                video.muted = false;
+                await video.play();
+            } catch (error) {
+                console.warn('Autoplay unmuted blocked, falling back to muted:', error);
+                // SE falhar (bloqueio do browser), ativa o mudo e toca imediatamente
+                // Isso impede que o vídeo fique "congelado"
+                video.muted = true;
+                try {
+                    await video.play();
+                } catch (e) {
+                    console.error("Video playback completely failed", e);
+                }
             }
         } else {
             video.pause();
+            video.currentTime = 0;
             this.showButton.set(false);
         }
     }
@@ -107,13 +122,16 @@ export class TikTokVideoComponent implements OnInit {
         >
             @for(post of posts; track post.id; let i = $index) {
                 <div class="h-full w-full snap-start relative bg-gray-900 flex items-center justify-center border-b border-gray-800 overflow-hidden">
-                   <app-tiktok-video 
-                      [src]="post.videoUrl"
-                      [isActive]="activeIndex() === i"
-                      [shouldPreload]="i === activeIndex() + 1"
-                      (ended)="scrollToNext(i)"
-                      (accessTool)="onAccessTool.emit()"
-                   ></app-tiktok-video>
+                   <!-- Only render video component if it's close to viewport to save memory -->
+                   @if (i >= activeIndex() - 1 && i <= activeIndex() + 1) {
+                       <app-tiktok-video 
+                          [src]="post.videoUrl"
+                          [isActive]="activeIndex() === i"
+                          [shouldPreload]="i === activeIndex() + 1"
+                          (ended)="scrollToNext(i)"
+                          (accessTool)="onAccessTool.emit()"
+                       ></app-tiktok-video>
+                   }
 
                    <!-- Gradient Overlay -->
                    <div class="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/60 z-10 pointer-events-none"></div>
@@ -238,7 +256,6 @@ export class TikTokFeedComponent {
             "Instalação vapt-vupt, muito fluido. Recomendo demais!"
         ];
         
-        // REDUCED FROM 540 TO 30 for Performance
         return Array.from({ length: 30 }, (_, i) => ({
             id: i,
             user: `${names[Math.floor(Math.random() * names.length)]}${suffixes[Math.floor(Math.random() * suffixes.length)]}`,
