@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ViewChild, ElementRef, AfterViewInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IconComponent } from './icon.component';
 
@@ -24,16 +24,35 @@ import { IconComponent } from './icon.component';
           </p>
         </div>
 
-        <!-- Video Placeholder -->
-        <div class="aspect-video bg-black rounded-xl relative overflow-hidden shadow-xl group cursor-pointer border-4 border-gray-100">
-             <div class="absolute inset-0 flex items-center justify-center z-10">
-                <div class="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center animate-pulse">
-                    <app-icon name="play" class="w-8 h-8 text-white fill-current ml-1"></app-icon>
-                </div>
-             </div>
-             <img src="https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=1974&auto=format&fit=crop" class="w-full h-full object-cover opacity-60" />
-             <div class="absolute bottom-4 left-4 right-4 text-white text-xs font-bold text-center text-shadow">
-                 ASSISTA O VÍDEO EXPLICATIVO ANTES DE COMPRAR
+        <!-- Video Player -->
+        <div 
+            class="aspect-video bg-black rounded-xl relative overflow-hidden shadow-xl border-4 border-gray-100 group"
+            (mouseenter)="isHovering.set(true)" 
+            (mouseleave)="isHovering.set(false)"
+        >
+             <video 
+                #videoPlayer
+                class="w-full h-full object-cover cursor-pointer"
+                playsinline
+                webkit-playsinline
+                loop
+                (click)="togglePlay()"
+                poster="https://res.cloudinary.com/drcxtjbox/video/upload/so_0,q_auto,f_auto/v1769798106/video_site._kc5sz4.jpg"
+                src="https://res.cloudinary.com/drcxtjbox/video/upload/q_auto,f_auto,vc_auto/v1769798106/video_site._kc5sz4.mp4">
+             </video>
+
+             <!-- Custom Play/Pause Button -->
+             <div 
+                class="absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300"
+                [class.opacity-0]="isPlaying() && !isHovering()"
+                [class.opacity-100]="!isPlaying() || isHovering()"
+             >
+                <button 
+                    (click)="togglePlay()"
+                    class="pointer-events-auto bg-black/40 hover:bg-[#FE2C55] text-white rounded-full w-16 h-16 flex items-center justify-center backdrop-blur-sm border-2 border-white/20 shadow-2xl transition-all transform hover:scale-110 active:scale-95"
+                >
+                    <app-icon [name]="isPlaying() ? 'pause' : 'play'" class="w-8 h-8 fill-current"></app-icon>
+                </button>
              </div>
         </div>
 
@@ -71,4 +90,45 @@ import { IconComponent } from './icon.component';
     </div>
   `
 })
-export class SalesPageComponent {}
+export class SalesPageComponent implements AfterViewInit {
+    @ViewChild('videoPlayer') videoPlayer!: ElementRef<HTMLVideoElement>;
+    
+    isPlaying = signal(false);
+    isHovering = signal(false);
+
+    ngAfterViewInit() {
+        this.attemptAutoplay();
+    }
+
+    attemptAutoplay() {
+        const video = this.videoPlayer.nativeElement;
+        // Tenta reproduzir com som primeiro (já que o usuário clicou para chegar aqui)
+        video.muted = false;
+        video.play().then(() => {
+            this.isPlaying.set(true);
+        }).catch(() => {
+            // Se bloquear, tenta mudo
+            console.log('Autoplay com som bloqueado, tentando mudo');
+            video.muted = true;
+            video.play().then(() => {
+                this.isPlaying.set(true);
+            }).catch(e => {
+                console.error('Autoplay falhou:', e);
+                this.isPlaying.set(false);
+            });
+        });
+
+        // Sincroniza estado caso controles nativos (sistema) interfiram
+        video.addEventListener('play', () => this.isPlaying.set(true));
+        video.addEventListener('pause', () => this.isPlaying.set(false));
+    }
+
+    togglePlay() {
+        const video = this.videoPlayer.nativeElement;
+        if (video.paused) {
+            video.play();
+        } else {
+            video.pause();
+        }
+    }
+}
