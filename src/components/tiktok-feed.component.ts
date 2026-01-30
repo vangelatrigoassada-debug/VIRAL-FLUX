@@ -19,16 +19,20 @@ import { ASSETS } from '../app.assets';
             disablePictureInPicture
             disableRemotePlayback
             (ended)="handleEnded()"
+            [loop]="false"
         ></video>
         
         @if (showButton()) {
-            <div class="absolute inset-0 z-50 flex items-center justify-center animate-fade-in bg-black/40 backdrop-blur-[2px]">
-                <button 
-                    (click)="accessTool.emit()"
-                    class="bg-[#00f2ea] hover:bg-[#00c2bb] text-black font-extrabold py-4 px-8 rounded-full shadow-[0_0_30px_rgba(0,242,234,0.6)] animate-bounce transform hover:scale-110 transition-all border-2 border-white uppercase tracking-wider text-sm sm:text-base pointer-events-auto cursor-pointer"
-                >
-                    Acessar a ferramenta
-                </button>
+            <div class="absolute inset-0 z-50 flex items-center justify-center animate-fade-in bg-black/60 backdrop-blur-sm">
+                <div class="flex flex-col items-center gap-4 animate-bounce">
+                    <p class="text-white font-bold text-lg text-center px-4 leading-tight text-shadow">VAGA RESERVADA POR 2 MINUTOS</p>
+                    <button 
+                        (click)="accessTool.emit()"
+                        class="bg-[#00f2ea] hover:bg-[#00c2bb] text-black font-extrabold py-4 px-8 rounded-full shadow-[0_0_30px_rgba(0,242,234,0.6)] transform hover:scale-110 transition-all border-2 border-white uppercase tracking-wider text-sm sm:text-base pointer-events-auto cursor-pointer"
+                    >
+                        ACESSAR FERRAMENTA AGORA
+                    </button>
+                </div>
             </div>
         }
      </div>
@@ -38,37 +42,37 @@ export class TikTokVideoComponent implements AfterViewInit {
     src = input.required<string>();
     isActive = input.required<boolean>();
     shouldPreload = input<boolean>(false);
+    isLast = input<boolean>(false); 
+    
     ended = output<void>();
     accessTool = output<void>();
 
     @ViewChild('videoRef') videoRef!: ElementRef<HTMLVideoElement>;
     showButton = signal(false);
 
-    // Otimização agressiva: q_auto:eco reduz drasticamente o bitrate para carregar instantâneo
     optimizedSrc = computed(() => {
         const url = this.src();
         if (url.includes('res.cloudinary.com') && url.includes('/upload/')) {
-            return url.replace('/upload/', '/upload/q_auto:eco,f_auto,w_720/');
+            // vc_auto: Garante o codec correto para o dispositivo (evita travamento do video 4)
+            // q_auto:eco: Qualidade econômica para carregar instantaneamente
+            return url.replace('/upload/', '/upload/q_auto:eco,f_auto,vc_auto,w_720/');
         }
         return url;
     });
 
     preloadStrategy = computed(() => {
-        // Force auto preload if active or next in line to prevent lag
         if (this.isActive()) return 'auto';
         if (this.shouldPreload()) return 'auto';
         return 'metadata';
     });
 
     ngAfterViewInit() {
-        // Tenta reproduzir assim que o componente for criado se ele já for o ativo (caso do 1º vídeo)
         if (this.isActive()) {
             this.handlePlayback();
         }
     }
 
     ngOnChanges() {
-        // Reage a mudanças de slide
         if (this.videoRef) {
             this.handlePlayback();
         }
@@ -81,31 +85,38 @@ export class TikTokVideoComponent implements AfterViewInit {
             this.showButton.set(false);
             
             try {
-                video.currentTime = 0;
-                // Tenta tocar COM som primeiro
+                // Segurança anti-travamento: Só reseta o tempo se o vídeo já tiver metadados carregados
+                if (video.readyState >= 1) {
+                     video.currentTime = 0;
+                }
+                
                 video.muted = false;
                 await video.play();
             } catch (error) {
-                console.warn('Autoplay unmuted blocked, falling back to muted:', error);
-                // SE falhar (bloqueio do browser), ativa o mudo e toca imediatamente
-                // Isso impede que o vídeo fique "congelado"
+                // Fallback silencioso se o navegador bloquear autoplay com som
                 video.muted = true;
                 try {
                     await video.play();
                 } catch (e) {
-                    console.error("Video playback completely failed", e);
+                     // Última tentativa: força o play sem resetar
+                     video.play().catch(() => {});
                 }
             }
         } else {
             video.pause();
-            video.currentTime = 0;
+            // Não resetamos currentTime no pause para evitar overhead de processamento em background
             this.showButton.set(false);
         }
     }
 
     handleEnded() {
-        this.showButton.set(true);
-        this.ended.emit();
+        if (this.isLast()) {
+            // Se for o último (vídeo 5), mostra o botão e PARA.
+            this.showButton.set(true);
+        } else {
+            // Se não for o último, avisa o componente pai para rolar para o próximo
+            this.ended.emit();
+        }
     }
 }
 
@@ -122,12 +133,13 @@ export class TikTokVideoComponent implements AfterViewInit {
         >
             @for(post of posts; track post.id; let i = $index) {
                 <div class="h-full w-full snap-start relative bg-gray-900 flex items-center justify-center border-b border-gray-800 overflow-hidden">
-                   <!-- Only render video component if it's close to viewport to save memory -->
+                   <!-- Renderiza o atual, anterior e próximo para performance -->
                    @if (i >= activeIndex() - 1 && i <= activeIndex() + 1) {
                        <app-tiktok-video 
                           [src]="post.videoUrl"
                           [isActive]="activeIndex() === i"
                           [shouldPreload]="i === activeIndex() + 1"
+                          [isLast]="i === posts.length - 1"
                           (ended)="scrollToNext(i)"
                           (accessTool)="onAccessTool.emit()"
                        ></app-tiktok-video>
