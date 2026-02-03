@@ -37,8 +37,8 @@ import { IconComponent } from './icon.component';
                 webkit-playsinline
                 loop
                 (click)="togglePlay()"
-                poster="https://res.cloudinary.com/drcxtjbox/video/upload/so_0,q_auto,f_auto/v1769798106/video_site._kc5sz4.jpg"
-                src="https://res.cloudinary.com/drcxtjbox/video/upload/q_auto,f_auto,vc_auto/v1769798106/video_site._kc5sz4.mp4">
+                poster="https://res.cloudinary.com/drcxtjbox/video/upload/so_0,q_auto,f_auto/v1770146915/video_oferta_67_90_jz5d35.jpg"
+                src="https://res.cloudinary.com/drcxtjbox/video/upload/q_auto,f_auto,vc_auto/v1770146915/video_oferta_67_90_jz5d35.mp4">
              </video>
 
              <!-- Custom Play/Pause Button -->
@@ -71,8 +71,8 @@ import { IconComponent } from './icon.component';
         <div class="text-center space-y-1 py-4 bg-white rounded-xl">
             <p class="text-gray-400 text-xs font-semibold uppercase tracking-widest mb-1">Oferta Exclusiva</p>
             <p class="text-gray-400 text-sm line-through">De R$ 497,00 por apenas</p>
-            <p class="text-5xl font-black text-[#00C853] tracking-tighter">12x R$ 9,74</p>
-            <p class="text-gray-500 text-xs font-medium">ou R$ 97,00 à vista</p>
+            <p class="text-5xl font-black text-[#00C853] tracking-tighter">12x R$ 6,87</p>
+            <p class="text-gray-500 text-xs font-medium">ou R$ 67,90 à vista</p>
             
             <a 
                 href="https://checkout.ticto.app/O411A516B" 
