@@ -56,7 +56,8 @@ const ICONS: Record<string, string> = {
   `
 })
 export class IconComponent {
-  private sanitizer = inject(DomSanitizer);
+  // FIX: Explicitly type `sanitizer` as `DomSanitizer` because type inference was failing and resolving to `unknown`.
+  private sanitizer: DomSanitizer = inject(DomSanitizer);
   
   name = input.required<string>();
   size = input<number>(24);
